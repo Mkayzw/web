@@ -1,4 +1,14 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:5000/api'
+const resolveApiBaseUrl = () => {
+  const rawBase =
+    import.meta.env.VITE_API_BASE_URL ??
+    import.meta.env.VITE_API_URL ??
+    'http://localhost:5000'
+
+  const normalized = rawBase.replace(/\/$/, '')
+  return normalized.endsWith('/api') ? normalized : `${normalized}/api`
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 const isNil = (value) => value === undefined || value === null || value === ''
 
