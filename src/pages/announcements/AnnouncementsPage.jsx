@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnnouncementCard } from '../../components/cards/AnnouncementCard.jsx'
 import { EmptyState } from '../../components/common/EmptyState.jsx'
 import { Loader } from '../../components/common/Loader.jsx'
@@ -7,6 +7,7 @@ import { Modal } from '../../components/common/Modal.jsx'
 import AnnouncementForm from '../../components/forms/AnnouncementForm.jsx'
 import { useApiQuery, useApiMutation } from '../../hooks/useApi.js'
 import { useAuth } from '../../hooks/useAuth.js'
+import { getSocket, socketEvents } from '../../utils/socket.js'
 
 const audiences = [
   { value: 'ALL', label: 'All audiences' },
@@ -16,6 +17,7 @@ const audiences = [
 
 export const AnnouncementsPage = () => {
   const { user } = useAuth()
+  const socket = getSocket()
   const [filters, setFilters] = useState({ search: '', targetAudience: 'ALL', pinned: '' })
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
@@ -28,6 +30,21 @@ export const AnnouncementsPage = () => {
       pinned: filters.pinned || undefined
     }
   })
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewAnnouncement = (announcement) => {
+      console.log('New announcement received:', announcement)
+      announcementsQuery.refetch()
+    }
+
+    socket.on(socketEvents.NEW_ANNOUNCEMENT, handleNewAnnouncement)
+
+    return () => {
+      socket.off(socketEvents.NEW_ANNOUNCEMENT, handleNewAnnouncement)
+    }
+  }, [socket, announcementsQuery])
 
   const createMutation = useApiMutation('/announcements', {
     method: 'POST',

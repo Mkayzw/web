@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScheduleCard } from '../../components/cards/ScheduleCard.jsx'
 import { EmptyState } from '../../components/common/EmptyState.jsx'
 import { Loader } from '../../components/common/Loader.jsx'
@@ -7,6 +7,7 @@ import { Modal } from '../../components/common/Modal.jsx'
 import ScheduleForm from '../../components/forms/ScheduleForm.jsx'
 import { useApiQuery, useApiMutation } from '../../hooks/useApi.js'
 import { useAuth } from '../../hooks/useAuth.js'
+import { getSocket, socketEvents } from '../../utils/socket.js'
 
 const days = [
   { label: 'All days', value: '' },
@@ -20,6 +21,7 @@ const days = [
 
 export const SchedulesPage = () => {
   const { user } = useAuth()
+  const socket = getSocket()
   const [filters, setFilters] = useState({ dayOfWeek: '', semester: '' })
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
@@ -36,6 +38,21 @@ export const SchedulesPage = () => {
     params: { limit: 100 },
     enabled: isCreateModalOpen
   })
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleScheduleUpdate = (schedule) => {
+      console.log('Schedule update received:', schedule)
+      schedulesQuery.refetch()
+    }
+
+    socket.on(socketEvents.SCHEDULE_UPDATE, handleScheduleUpdate)
+
+    return () => {
+      socket.off(socketEvents.SCHEDULE_UPDATE, handleScheduleUpdate)
+    }
+  }, [socket, schedulesQuery])
 
   const venuesQuery = useApiQuery('/venues', {
     params: { limit: 100 },

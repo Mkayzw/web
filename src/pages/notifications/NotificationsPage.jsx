@@ -1,11 +1,14 @@
+import { useEffect } from 'react'
 import { NotificationItem } from '../../components/cards/NotificationItem.jsx'
 import { EmptyState } from '../../components/common/EmptyState.jsx'
 import { Loader } from '../../components/common/Loader.jsx'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { useApiMutation, useApiQuery } from '../../hooks/useApi.js'
 import { apiFetch } from '../../utils/apiClient.js'
+import { getSocket, socketEvents } from '../../utils/socket.js'
 
 export const NotificationsPage = () => {
+  const socket = getSocket()
   const notificationsQuery = useApiQuery('/notifications', {
     params: { limit: 20, page: 1 }
   })
@@ -19,6 +22,21 @@ export const NotificationsPage = () => {
     method: 'PUT',
     onSuccess: () => notificationsQuery.refetch()
   })
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewNotification = (notification) => {
+      console.log('New notification received:', notification)
+      notificationsQuery.refetch()
+    }
+
+    socket.on(socketEvents.NOTIFICATION, handleNewNotification)
+
+    return () => {
+      socket.off(socketEvents.NOTIFICATION, handleNewNotification)
+    }
+  }, [socket, notificationsQuery])
 
   const handleMarkRead = async (notificationId) => {
     try {

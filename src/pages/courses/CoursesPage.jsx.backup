@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useApiMutation, useApiQuery } from '../../hooks/useApi.js'
 import { CourseCard } from '../../components/cards/CourseCard.jsx'
 import { EmptyState } from '../../components/common/EmptyState.jsx'
@@ -6,7 +6,7 @@ import { Loader } from '../../components/common/Loader.jsx'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import { Modal } from '../../components/common/Modal.jsx'
-import { AdminCourseForm } from '../../components/forms/AdminCourseForm.jsx'
+import { Search, X } from 'lucide-react'
 
 const getEmptyCourseForm = () => ({
   code: '',
@@ -23,6 +23,11 @@ export const CoursesPage = () => {
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState(getEmptyCourseForm)
   const [createError, setCreateError] = useState(null)
+  const [courseSearch, setCourseSearch] = useState('')
+  const [lecturerSearch, setLecturerSearch] = useState('')
+  const [selectedLecturer, setSelectedLecturer] = useState(null)
+  const [showCourseResults, setShowCourseResults] = useState(false)
+  const [showLecturerResults, setShowLecturerResults] = useState(false)
 
   const coursesQuery = useApiQuery('/courses', {
     params: {
@@ -32,6 +37,27 @@ export const CoursesPage = () => {
       department: filters.department || undefined
     }
   })
+
+  // Search for existing courses to prevent duplicates
+  const courseSearchQuery = useApiQuery('/courses', {
+    params: {
+      search: courseSearch || undefined,
+      limit: 5
+    },
+    enabled: courseSearch.length >= 2
+  })
+
+  // Search for lecturers to assign to courses
+  const lecturerSearchQuery = useApiQuery('/users', {
+    params: {
+      role: 'LECTURER',
+      search: lecturerSearch || undefined,
+      limit: 10
+    },
+    enabled: lecturerSearch.length >= 2
+  })
+
+  // Enrollment mutations removed - students cannot self-enroll
 
   const createCourseMutation = useApiMutation('/courses', {
     method: 'POST'
@@ -87,11 +113,17 @@ export const CoursesPage = () => {
   // Students cannot self-enroll through this UI
   // Enrollment is managed through a separate platform
 
-  const handleCreateSubmit = async (formData) => {
+  const handleCreateChange = (event) => {
+    const { name, value } = event.target
+    setCreateForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleCreateSubmit = async (event) => {
+    event.preventDefault()
     setCreateError(null)
 
-    const code = formData.code.trim()
-    const name = formData.name.trim()
+    const code = createForm.code.trim()
+    const name = createForm.name.trim()
     if (!code || !name) {
       setCreateError('Code and name are required.')
       return
@@ -99,11 +131,11 @@ export const CoursesPage = () => {
 
     const payload = { code, name }
 
-    if (formData.department?.trim()) payload.department = formData.department.trim()
-    if (formData.description?.trim()) payload.description = formData.description.trim()
+    if (createForm.department.trim()) payload.department = createForm.department.trim()
+    if (createForm.description.trim()) payload.description = createForm.description.trim()
 
-    if (formData.credits) {
-      const creditsValue = Number(formData.credits)
+    if (createForm.credits) {
+      const creditsValue = Number(createForm.credits)
       if (Number.isNaN(creditsValue) || creditsValue < 0) {
         setCreateError('Credits should be a positive number.')
         return
@@ -111,15 +143,12 @@ export const CoursesPage = () => {
       payload.credits = creditsValue
     }
 
-    if (user?.role === 'ADMIN' && formData.lecturerId?.trim()) {
-      payload.lecturerId = formData.lecturerId.trim()
+    if (user?.role === 'ADMIN' && createForm.lecturerId.trim()) {
+      payload.lecturerId = createForm.lecturerId.trim()
     }
 
     try {
       await createCourseMutation.mutateAsync(payload)
-      setShowCreate(false)
-      setCreateForm(getEmptyCourseForm())
-      coursesQuery.refetch()
     } catch (err) {
       setCreateError(err.message || 'Failed to create course')
     }
@@ -191,7 +220,7 @@ export const CoursesPage = () => {
                   name="code"
                   className="w-full rounded-2xl border border-border/70 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-inner outline-none"
                   value={createForm.code}
-                  onChange={AdminCourseForm}
+                  onChange={handleCreateChange}
                 />
               </div>
               <div className="space-y-2">
@@ -203,7 +232,7 @@ export const CoursesPage = () => {
                   name="department"
                   className="w-full rounded-2xl border border-border/70 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-inner outline-none"
                   value={createForm.department}
-                  onChange={AdminCourseForm}
+                  onChange={handleCreateChange}
                   placeholder="e.g. Computer Science"
                 />
               </div>
@@ -218,7 +247,7 @@ export const CoursesPage = () => {
                 name="name"
                 className="w-full rounded-2xl border border-border/70 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-inner outline-none"
                 value={createForm.name}
-                onChange={AdminCourseForm}
+                onChange={handleCreateChange}
               />
             </div>
 
@@ -231,7 +260,7 @@ export const CoursesPage = () => {
                 name="description"
                 className="h-28 w-full resize-none rounded-2xl border border-border/70 bg-white/80 px-4 py-3 text-sm font-medium text-slate-600 shadow-inner outline-none"
                 value={createForm.description}
-                onChange={AdminCourseForm}
+                onChange={handleCreateChange}
                 placeholder="What’s this course about?"
               />
             </div>
@@ -248,7 +277,7 @@ export const CoursesPage = () => {
                   min="0"
                   className="w-full rounded-2xl border border-border/70 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-inner outline-none"
                   value={createForm.credits}
-                  onChange={AdminCourseForm}
+                  onChange={handleCreateChange}
                 />
               </div>
               {user?.role === 'ADMIN' ? (
@@ -261,7 +290,7 @@ export const CoursesPage = () => {
                     name="lecturerId"
                     className="w-full rounded-2xl border border-border/70 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-inner outline-none"
                     value={createForm.lecturerId}
-                    onChange={AdminCourseForm}
+                    onChange={handleCreateChange}
                     placeholder="Assign lecturer"
                   />
                 </div>

@@ -2,7 +2,7 @@ const resolveApiBaseUrl = () => {
   const rawBase =
     import.meta.env.VITE_API_BASE_URL ??
     import.meta.env.VITE_API_URL ??
-    'http://localhost:5000'
+    'http://localhost:3000'
 
   const normalized = rawBase.replace(/\/$/, '')
   return normalized.endsWith('/api') ? normalized : `${normalized}/api`
@@ -56,8 +56,7 @@ export const apiFetch = async (path, options = {}) => {
     method,
     headers,
     body: body && !(body instanceof FormData) ? JSON.stringify(body) : body,
-    signal,
-    credentials: 'include'
+    signal
   })
 
   if (response.status === 204) {

@@ -37,7 +37,8 @@ export const CourseCard = ({ course, onUpdate }) => {
     deleteMutation.mutate()
   }
 
-  const canEdit = user?.role === 'ADMIN' || (user?.role === 'LECTURER' && user?.id === lecturer?.id)
+  // Only admins can edit/delete courses
+  const canEdit = user?.role === 'ADMIN'
 
   const handleEditClick = (e) => {
     e.preventDefault()

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../utils/apiClient.js'
+import { initializeSocket, disconnectSocket } from '../utils/socket.js'
 
 const AuthContext = createContext(null)
 
@@ -62,6 +63,10 @@ export const AuthProvider = ({ children }) => {
     setUser(nextUser)
     setStatus('authenticated')
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: nextToken }))
+    
+    // Initialize Socket.IO connection
+    initializeSocket(nextToken)
+    
     return nextUser
   }, [])
 
@@ -70,6 +75,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
     setStatus('unauthenticated')
     localStorage.removeItem(STORAGE_KEY)
+    
+    // Disconnect Socket.IO connection
+    disconnectSocket()
   }, [])
 
   const value = useMemo(
