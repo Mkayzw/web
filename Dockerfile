@@ -1,6 +1,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
-RUN corepack enable
+# pnpm 11 fails on unapproved dependency build scripts; the lockfile is from pnpm 10.
+RUN npm install -g pnpm@10
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
